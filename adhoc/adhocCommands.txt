@@ -1,0 +1,67 @@
+##### /etc/ansible/hosts ####
+
+    [app]
+    192.168.60.4
+    192.168.60.5
+
+    [db]
+    192.168.60.6
+
+    #Group multi with all servers
+    [multi:children]
+    app
+    db
+
+    #Variables that will be applied to all servers
+    [multi:vars]
+    ansible_ssh_user=vagrant
+    ansible_ssh_private_key_file=~/.vagrant.d/insecure_private_key
+
+
+
+
+### Adhoc Commands ###
+
+##Complete Host information, where "db" is a group
+ansible db -m setup
+
+##where -s alias for --sudo
+ansible multi -s -m yum -a "name=ntp state=present"
+
+
+ansible multi -s -m service -a "name=ntpd state=started enabled=yes"
+ansible multi -s -a "service ntpd stop"
+ansible multi -s -a "ntpdate -q 0.rhel.pool.ntp.org"
+ansible multi -s -a "service ntpd start"
+
+##Install django in app servers
+ansible app -s -m yum -a "name=MySQL-python state=present"
+ansible app -s -m yum -a "name=python-setuptools state=present"
+ansible app -s -m easy_install -a "name=django state=present"
+ansible app -a "python -c 'import django; print django.get_version()'"
+
+##Install in any generic, Ubuntu, Centos, Debian, FreeBDS, RHEL
+ansible app -s -m package -a "name=git state=present"
+
+
+##Get information about files
+ansible multi -m stat -a "path=/etc/environment"
+
+##Copy files to servers
+ansible multi -m copy -a "src=/etc/hosts dest=/tmp/hosts"
+
+##Retrieve file from servers (reverse than copy)
+ansible multi -m fetch -a "src=/tmp/hosts dest=/tmp"
+
+##Update servers asyncrochronously, monitor progress (-B the maxium amount of time in seconds)
+ansible multi -s -B 3600 -a "yum update"
+
+##Check log files
+ansible multi -s -a "tail /var/log/messages"
+
+##for grep use module shell
+ansible multi -s -m shell -a "tail /var/log/messages | grep ansible-command | wc -l"
+
+##Manage cron jobs
+##Run script every day at 4 am
+ansible multi -s -m cron -a "name='daily-cron-all-servers' hour=4 job='/path/job/script.sh'"
